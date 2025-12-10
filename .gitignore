@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+
+# NodeJS
+node_modules/
+dist/
+npm-debug.log
+
+# ChromaDB
+data/chroma_db/
+!data/chroma_db/.keep
+
+# Project specific
+temp_*.wav
+
+# IDE
+.vscode/
+.idea/
