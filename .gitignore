@@ -1,24 +1,26 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-.venv/
-env/
-venv/
+*.egg-info/
 .env
+venv/
 
-# NodeJS
+# Node
 node_modules/
 dist/
-npm-debug.log
+build/
 
-# ChromaDB
-data/chroma_db/
-!data/chroma_db/.keep
-
-# Project specific
-temp_*.wav
-
-# IDE
+# VSCode
 .vscode/
-.idea/
+
+# MacOS
+.DS_Store
+
+# Logs & DBs
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
+.coverage
+htmlcov/

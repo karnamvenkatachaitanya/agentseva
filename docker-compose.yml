@@ -1,0 +1,48 @@
+# ─────────────────────────────────────────────────────────────────────────
+# AgentSeva — Razorpay Agentic Commerce & Recovery Engine
+# Boots the FastAPI backend and the React+Vite dual-view frontend.
+#   Backend : http://localhost:8000  (docs at /docs)
+#   Frontend: http://localhost:5173  (chat left · live audit logs right)
+# ─────────────────────────────────────────────────────────────────────────
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentseva-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Sensible demo defaults; override via a root .env file.
+      RAZORPAY_MODE: "${RAZORPAY_MODE:-mock}"
+      RAZORPAY_KEY_ID: "${RAZORPAY_KEY_ID:-}"
+      RAZORPAY_KEY_SECRET: "${RAZORPAY_KEY_SECRET:-}"
+      RAZORPAY_WEBHOOK_SECRET: "${RAZORPAY_WEBHOOK_SECRET:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      CLAUDE_MODEL: "${CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
+      DATABASE_URL: "${DATABASE_URL:-sqlite:////app/data/app.db}"
+      SQLALCHEMY_ECHO: "False"
+    volumes:
+      - agentseva_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: agentseva-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  agentseva_data:
