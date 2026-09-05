@@ -24,7 +24,7 @@ from app.tools.razorpay_tools import RazorpayToolRegistry
 
 
 # --------------------------------------------------------------------------- #
-# Scripted fake Anthropic client
+# Scripted provider-compatible client
 # --------------------------------------------------------------------------- #
 def _text(text: str) -> SimpleNamespace:
     return SimpleNamespace(type="text", text=text)
@@ -217,7 +217,7 @@ class TestAgentCore:
         assert resp.final_state is AgentState.ESCALATED
 
     def test_missing_api_key_raises(self, guardrails, tools):
-        cfg = Settings(ANTHROPIC_API_KEY="", _env_file=None)
+        cfg = Settings(HUGGINGFACE_API_KEY="", _env_file=None)
         agent = CommerceAgentCore(guardrails=guardrails, tools=tools, config=cfg)  # no client
         with pytest.raises(RuntimeError):
             agent.run("do something")

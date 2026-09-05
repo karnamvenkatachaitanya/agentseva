@@ -1,10 +1,38 @@
 # ─────────────────────────────────────────────────────────────────────────
 # AgentSeva — Razorpay Agentic Commerce & Recovery Engine
-# Boots the FastAPI backend and the React+Vite dual-view frontend.
+# Boots PostgreSQL, runs Alembic, then starts the backend and frontend.
 #   Backend : http://localhost:8000  (docs at /docs)
 #   Frontend: http://localhost:5173  (chat left · live audit logs right)
 # ─────────────────────────────────────────────────────────────────────────
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentseva
+      POSTGRES_USER: agentseva
+      POSTGRES_PASSWORD: agentseva
+    volumes:
+      - agentseva_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentseva -d agentseva"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentseva-backend
+    command: ["python", "-m", "app.db.migrate_compose"]
+    environment:
+      DATABASE_URL: "${COMPOSE_DATABASE_URL:-postgresql+psycopg://agentseva:agentseva@db:5432/agentseva}"
+    depends_on:
+      db:
+        condition: service_started
+    restart: "no"
+
   backend:
     build:
       context: .
@@ -20,10 +48,13 @@ services:
       RAZORPAY_WEBHOOK_SECRET: "${RAZORPAY_WEBHOOK_SECRET:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       CLAUDE_MODEL: "${CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
-      DATABASE_URL: "${DATABASE_URL:-sqlite:////app/data/app.db}"
+      DATABASE_URL: "${COMPOSE_DATABASE_URL:-postgresql+psycopg://agentseva:agentseva@db:5432/agentseva}"
       SQLALCHEMY_ECHO: "False"
-    volumes:
-      - agentseva_data:/app/data
+    depends_on:
+      db:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
       interval: 30s
@@ -45,4 +76,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  agentseva_data:
+  agentseva_postgres:

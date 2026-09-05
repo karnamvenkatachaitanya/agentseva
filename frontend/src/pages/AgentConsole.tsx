@@ -1,22 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { 
-  Bot, 
-  Send, 
-  RotateCcw, 
-  Activity, 
-  ShieldAlert, 
-  Clock,
-  Layers
+import type { FormEvent } from 'react';
+import {
+  Activity,
+  ArrowUpRight,
+  Bot,
+  ChevronDown,
+  Clock3,
+  FileCheck2,
+  Layers3,
+  MessageSquare,
+  Mic,
+  MicOff,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles,
+  Terminal,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { badge } from '../ui';
+import { readJsonResponse } from '../api';
 
 const API = '/api/v1';
 
 type Role = 'user' | 'agent' | 'system';
-interface ChatMsg {
-  role: Role;
-  text: string;
-}
+interface ChatMsg { role: Role; text: string; }
 interface Trace {
   id: number;
   trace_id: string;
@@ -33,46 +43,68 @@ function newSessionId(): string {
   return 'sess_' + Math.random().toString(36).slice(2, 11);
 }
 
+const prompts = [
+  { label: 'Create an order', prompt: 'Create an order for 2 packets of Aashirvaad Atta', icon: Layers3 },
+  { label: 'Make a payment link', prompt: 'Generate payment link for ₹450', icon: ArrowUpRight },
+  { label: 'Check a risky amount', prompt: 'Can I create an order for ₹52,000?', icon: ShieldCheck },
+];
+
 export function AgentConsole() {
   const [sessionId, setSessionId] = useState<string>(newSessionId);
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { 
-      role: 'system', 
-      text: 'Connected to AgentSeva autonomous commerce agent (Claude 3.5 Sonnet). Financial guardrail limit is active (₹50,000 per order). Try asking: "Create an order for 2 packets of Aashirvaad Atta" or "Generate payment link for ₹450".' 
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [traces, setTraces] = useState<Trace[]>([]);
   const [busy, setBusy] = useState(false);
+  const [hasAuditActivity, setHasAuditActivity] = useState(false);
+  const [simulating, setSimulating] = useState<'payment' | 'cart' | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceReplies, setVoiceReplies] = useState(true);
+  const [voiceSupported] = useState(
+    () => typeof window !== 'undefined'
+      && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition),
+  );
   const traceEndRef = useRef<HTMLDivElement | null>(null);
+  const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const refreshTraces = useCallback(async () => {
     try {
       const res = await fetch(`${API}/audit/traces/${encodeURIComponent(sessionId)}`);
-      if (res.ok) {
-        setTraces(await res.json());
-      } else if (res.status === 404) {
-        setTraces([]);
-      }
-    } catch {
-      /* backend not reachable yet */
-    }
+      if (res.ok) setTraces(await res.json());
+      else if (res.status === 404) setTraces([]);
+    } catch { /* backend not reachable yet */ }
   }, [sessionId]);
 
   useEffect(() => {
+    if (!hasAuditActivity) return;
     refreshTraces();
-    const t = setInterval(refreshTraces, 2000);
-    return () => clearInterval(t);
-  }, [refreshTraces]);
+    const timer = setInterval(refreshTraces, 2000);
+    return () => clearInterval(timer);
+  }, [hasAuditActivity, refreshTraces]);
 
   useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     traceEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [traces]);
+  }, [messages, traces]);
 
-  const push = (role: Role, text: string) => setMessages((m) => [...m, { role, text }]);
+  const push = (role: Role, text: string) => setMessages((current) => [...current, { role, text }]);
 
-  const send = async () => {
-    const message = input.trim();
+  const speak = useCallback((text: string) => {
+    if (!voiceReplies || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-IN';
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  }, [voiceReplies]);
+
+  useEffect(() => () => {
+    recognitionRef.current?.stop();
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  const send = async (preset?: string) => {
+    const message = (preset ?? input).trim();
     if (!message || busy) return;
     setInput('');
     push('user', message);
@@ -83,513 +115,248 @@ export function AgentConsole() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, session_id: sessionId }),
       });
-      const data = await res.json();
+      const data = await readJsonResponse<{
+        session_id?: string;
+        reply?: string;
+        requires_escalation?: boolean;
+        detail?: string;
+        error?: string;
+      }>(res);
       if (res.ok) {
-        if (data.session_id) setSessionId(data.session_id);
-        push('agent', data.reply || '(no reply)');
-        if (data.requires_escalation) {
-          push('system', '⚠️ Financial Risk Escalation: High-value transaction held for human confirmation.');
-        }
-      } else {
-        push('system', `⛔ ${data.detail || data.error || 'Request failed'}`);
-      }
-    } catch (e) {
-      push('system', `⛔ Network error: ${String(e)}`);
+        if (data?.session_id) setSessionId(data.session_id);
+        setHasAuditActivity(true);
+        const reply = data?.reply || '(no reply)';
+        push('agent', reply);
+        speak(reply);
+        if (data?.requires_escalation) push('system', 'Financial risk escalation: this transaction is held for human confirmation.');
+      } else push('system', `Request failed: ${data?.detail || data?.error || 'Unknown error'}`);
+    } catch (error) {
+      push('system', `Network error: ${String(error)}`);
     } finally {
       setBusy(false);
-      refreshTraces();
     }
+  };
+
+  const toggleListening = () => {
+    if (!voiceSupported || busy) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const Recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+      setInput(transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const simulateWebhook = async () => {
+    setSimulating('payment');
     const body = {
       event: 'payment.failed',
-      payload: {
-        payment: {
-          entity: {
-            id: 'pay_' + Math.random().toString(36).slice(2, 10),
-            order_id: sessionId,
-            amount: 250000,
-            currency: 'INR',
-            error_description: 'Customer bank server down - transaction failed',
-            contact: '+919876543210',
-            notes: { session_id: sessionId, customer_name: 'Aarav Sharma' },
-          },
-        },
-      },
+      payload: { payment: { entity: {
+        id: 'pay_' + Math.random().toString(36).slice(2, 10), order_id: sessionId, amount: 250000, currency: 'INR',
+        error_description: 'Customer bank server down - transaction failed', contact: '+919876543210',
+        notes: { session_id: sessionId, customer_name: 'Aarav Sharma' },
+      } } },
     };
-    push('system', 'Simulating Razorpay webhook: payment.failed...');
+    push('system', 'Simulating Razorpay webhook: payment.failed');
     try {
-      await fetch(`${API}/webhooks/razorpay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      push('system', 'Revenue Recovery Engine engaged: Diagnosed root cause and issued retry link.');
-    } catch (e) {
-      push('system', `Simulation error: ${String(e)}`);
-    }
-    refreshTraces();
+      const res = await fetch(`${API}/webhooks/razorpay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setHasAuditActivity(true);
+      push('system', 'Revenue Recovery Engine engaged: diagnosed root cause and issued retry link.');
+    } catch (error) { push('system', `Simulation error: ${String(error)}`); }
+    finally { setSimulating(null); }
   };
 
   const simulateDropped = async () => {
+    setSimulating('cart');
     const body = {
-      session_id: sessionId,
-      order_id: sessionId,
-      amount_inr: 1250,
-      customer_name: 'Priya Patel',
-      customer_phone: '+919123456789',
-      last_stage: 'payment',
-      idle_seconds: 180,
-      payment_attempted: false,
+      session_id: sessionId, order_id: sessionId, amount_inr: 1250, customer_name: 'Priya Patel',
+      customer_phone: '+919123456789', last_stage: 'payment', idle_seconds: 180, payment_attempted: false,
     };
-    push('system', 'Simulating dropped checkout session...');
+    push('system', 'Simulating dropped checkout session');
     try {
-      await fetch(`${API}/recovery/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(`${API}/recovery/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setHasAuditActivity(true);
       push('system', 'Dropped checkout salvaged: dynamic discount payment link created.');
-    } catch (e) {
-      push('system', `Simulation error: ${String(e)}`);
-    }
-    refreshTraces();
+    } catch (error) { push('system', `Simulation error: ${String(error)}`); }
+    finally { setSimulating(null); }
   };
 
   const resetSession = () => {
-    const newId = newSessionId();
-    setSessionId(newId);
+    const next = newSessionId();
+    setSessionId(next);
     setTraces([]);
-    setMessages([{ role: 'system', text: `Session refreshed. New session ID: ${newId}` }]);
+    setHasAuditActivity(false);
+    setMessages([]);
+    setInput('');
+    recognitionRef.current?.stop();
+    window.speechSynthesis?.cancel();
   };
 
+  const submit = (event: FormEvent) => { event.preventDefault(); void send(); };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', background: '#f8fafc' }}>
-      {/* Sub-Header Actions */}
-      <div 
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 24px',
-          background: '#ffffff',
-          borderBottom: '1px solid #e2e8f0',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            background: '#f1f5f9',
-            border: '1px solid #e2e8f0',
-            padding: '3px 8px',
-            borderRadius: 5,
-            fontSize: 12,
-            color: '#334155',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 500,
-          }}>
-            <Layers size={13} style={{ color: '#64748b' }} />
-            <span>SESSION: {sessionId}</span>
-          </div>
-
-          <span style={{ fontSize: 12, color: '#64748b' }}>
-            Claude 3.5 Sonnet Tool-Use (Bounded 6 Steps / Turn)
-          </span>
+    <div className="console-page">
+      <div className="console-toolbar">
+        <div className="console-session">
+          <span className="console-live-dot" />
+          <span className="eyebrow">Live session</span>
+          <code>{sessionId}</code>
         </div>
-
-        {/* Quick Simulation Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button 
-            onClick={simulateWebhook}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              color: '#b91c1c',
-              padding: '6px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-          >
-            <ShieldAlert size={14} style={{ color: '#dc2626' }} />
-            <span>Simulate Failed Payment</span>
-          </button>
-
-          <button 
-            onClick={simulateDropped}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              color: '#b45309',
-              padding: '6px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-          >
-            <RotateCcw size={14} style={{ color: '#d97706' }} />
-            <span>Simulate Dropped Cart</span>
-          </button>
-
-          <button 
-            onClick={resetSession}
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              color: '#475569',
-              padding: '6px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-          >
-            New Session
-          </button>
+        <div className="console-toolbar-meta">
+          <span className="model-chip"><Sparkles size={13} /> Qwen3-32B · Hugging Face</span>
+          <button className="console-quiet-action" onClick={resetSession}><RotateCcw size={14} /> New session</button>
         </div>
       </div>
 
-      {/* Dual View Workspace */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* LEFT PANE: Agent Chat */}
-        <section 
-          style={{ 
-            flex: 1, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            borderRight: '1px solid #e2e8f0', 
-            minWidth: 0,
-            background: '#ffffff',
-          }}
-        >
-          <div 
-            style={{ 
-              padding: '10px 18px', 
-              borderBottom: '1px solid #e2e8f0', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              background: '#f8fafc',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Bot size={16} style={{ color: '#2563eb' }} />
-              <span style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>Agent Conversation</span>
+      <div className="console-grid">
+        <section className="conversation-panel">
+          <div className="panel-heading">
+            <div className="panel-heading-icon teal"><Bot size={17} /></div>
+            <div>
+              <h2>Commerce copilot</h2>
+              <p>Speak or type an order. Review it, then send safely.</p>
             </div>
-            <span style={{ fontSize: 11, color: '#64748b' }}>
-              Deterministic (temp = 0)
-            </span>
+            <span className={`status-pill ${isListening ? 'listening' : ''}`}><span /> {isListening ? 'Listening' : busy ? 'Working' : 'Ready'}</span>
           </div>
 
-          {/* Messages Feed */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12, background: '#f8fafc' }}>
-            {messages.map((m, i) => (
-              <div key={i} style={chatBubbleContainerStyle(m.role)}>
-                <div style={chatBubbleHeaderStyle(m.role)}>
-                  <span>{m.role.toUpperCase()}</span>
+          <div className="message-feed">
+            {messages.length === 0 ? (
+              <div className="welcome-state">
+                <div className="welcome-mark"><MessageSquare size={22} /></div>
+                <span className="eyebrow">AgentSeva is ready</span>
+                <h3>What should we do for your customer?</h3>
+                <p>Speak or type a commerce task in plain language. Your transcript stays editable, and every action is checked against the ₹50,000 order limit.</p>
+                <div className="prompt-list">
+                  {prompts.map(({ label, prompt, icon: Icon }) => (
+                    <button key={label} className="prompt-card" onClick={() => void send(prompt)} disabled={busy}>
+                      <span className="prompt-icon"><Icon size={15} /></span>
+                      <span><strong>{label}</strong><small>{prompt}</small></span>
+                      <ArrowUpRight size={14} />
+                    </button>
+                  ))}
                 </div>
-                <div style={chatBubbleBodyStyle(m.role)}>
-                  {m.text}
+              </div>
+            ) : messages.map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`message-row ${message.role}`}>
+                {message.role === 'agent' && <div className="message-avatar"><Bot size={15} /></div>}
+                <div className="message-stack">
+                  <span className="message-label">{message.role === 'agent' ? 'AGENTSEVA' : message.role === 'user' ? 'YOU' : 'EVENT'}</span>
+                  <div className="message-bubble">{message.text}</div>
                 </div>
               </div>
             ))}
             {busy && (
-              <div style={chatBubbleContainerStyle('agent')}>
-                <div style={chatBubbleHeaderStyle('agent')}>
-                  <span>AGENT EVALUATING</span>
-                </div>
-                <div style={{ ...chatBubbleBodyStyle('agent'), display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="pulse-indicator" style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb', display: 'inline-block' }} />
-                  <span style={{ color: '#64748b' }}>Checking guardrails and preparing tool call...</span>
+              <div className="message-row agent">
+                <div className="message-avatar"><Bot size={15} /></div>
+                <div className="message-stack">
+                  <span className="message-label">AGENTSEVA · WORKING</span>
+                  <div className="message-bubble thinking"><span /><span /><span /> Checking the guardrails and preparing the action</div>
                 </div>
               </div>
             )}
+            <div ref={messageEndRef} />
           </div>
 
-          {/* Chat Input */}
-          <div 
-            style={{ 
-              display: 'flex', 
-              gap: 8, 
-              padding: '12px 18px', 
-              borderTop: '1px solid #e2e8f0',
-              background: '#ffffff',
-            }}
-          >
-            <input
-              style={{
-                flex: 1,
-                padding: '9px 14px',
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#0f172a',
-                fontSize: 13,
-                outline: 'none',
-                fontFamily: 'inherit',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-              }}
-              value={input}
-              placeholder="e.g. 'Create an order for 2 packets of Aashirvaad Atta' or 'Generate link for ₹350'"
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              disabled={busy}
-            />
-            <button 
-              onClick={send} 
-              disabled={busy || !input.trim()}
-              style={{
-                padding: '0 16px',
-                borderRadius: 6,
-                border: '1px solid #2563eb',
-                background: input.trim() && !busy ? '#2563eb' : '#94a3b8',
-                color: '#ffffff',
-                cursor: input.trim() && !busy ? 'pointer' : 'not-allowed',
-                fontWeight: 600,
-                fontSize: 13,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                transition: 'all 0.15s ease',
-              }}
+          <form className="composer" onSubmit={submit}>
+            <button
+              className={`voice-button ${isListening ? 'active' : ''}`}
+              type="button"
+              onClick={toggleListening}
+              disabled={!voiceSupported || busy}
+              aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+              title={voiceSupported ? (isListening ? 'Stop listening' : 'Speak your order') : 'Voice input is not supported in this browser'}
             >
-              <Send size={14} />
-              <span>Send</span>
+              {isListening ? <MicOff size={17} /> : <Mic size={17} />}
+            </button>
+            <div className="composer-field">
+              <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={busy} rows={1}
+                placeholder={isListening ? 'Listening… speak your order' : 'Ask for an order, payment link, or recovery action…'} onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); }
+                }} />
+              <span className="composer-hint">Enter to send · Shift + Enter for a new line</span>
+            </div>
+            <button className="send-button" type="submit" disabled={busy || !input.trim()} aria-label="Send message">
+              <Send size={16} />
+            </button>
+          </form>
+          <div className="composer-foot">
+            <span><ShieldCheck size={13} /> Financial actions are evaluated before execution</span>
+            <button type="button" onClick={() => {
+              setVoiceReplies((enabled) => {
+                if (enabled) window.speechSynthesis?.cancel();
+                return !enabled;
+              });
+            }} aria-label={voiceReplies ? 'Mute spoken replies' : 'Enable spoken replies'}>
+              {voiceReplies ? <Volume2 size={13} /> : <VolumeX size={13} />}
+              {voiceReplies ? 'Spoken replies on' : 'Spoken replies off'}
             </button>
           </div>
         </section>
 
-        {/* RIGHT PANE: Live Append-Only Audit Trail */}
-        <section 
-          style={{ 
-            flex: 1.15, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            minWidth: 0, 
-            background: '#ffffff' 
-          }}
-        >
-          <div 
-            style={{ 
-              padding: '10px 18px', 
-              borderBottom: '1px solid #e2e8f0', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              background: '#f8fafc',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Activity size={16} style={{ color: '#059669' }} />
-              <span style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>Immutable Audit Trail</span>
-              <span style={{
-                fontSize: 11,
-                fontWeight: 600,
-                background: '#ecfdf5',
-                color: '#059669',
-                padding: '1px 6px',
-                borderRadius: 4,
-                border: '1px solid #a7f3d0'
-              }}>
-                {traces.length} Records
-              </span>
-            </div>
-            <span style={{ fontSize: 11, color: '#64748b' }}>
-              Auto-polled 2s · Append-Only SQLite
-            </span>
+        <aside className="audit-panel">
+          <div className="panel-heading audit-heading">
+            <div className="panel-heading-icon ink"><FileCheck2 size={17} /></div>
+            <div><h2>Decision ledger</h2><p>Every tool call, held in sequence.</p></div>
+            <span className="record-count">{traces.length} {traces.length === 1 ? 'record' : 'records'}</span>
           </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 10, background: '#f8fafc' }}>
-            {traces.length === 0 && (
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '60%', 
-                color: '#94a3b8',
-                gap: 8,
-                textAlign: 'center'
-              }}>
-                <Activity size={28} style={{ opacity: 0.3 }} />
-                <div>
-                  <div style={{ fontWeight: 600, color: '#475569', fontSize: 13 }}>No Audit Traces Recorded Yet</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-                    Trigger a chat action or click a simulation button to inspect the live decision tree.
-                  </div>
+          <div className="audit-actions">
+            <button onClick={() => void simulateWebhook()} disabled={simulating !== null}>
+              <ShieldAlert size={14} /> {simulating === 'payment' ? 'Simulating…' : 'Failed payment'}
+            </button>
+            <button onClick={() => void simulateDropped()} disabled={simulating !== null}>
+              <RotateCcw size={14} /> {simulating === 'cart' ? 'Simulating…' : 'Dropped cart'}
+            </button>
+          </div>
+          <div className="audit-feed">
+            {traces.length === 0 ? (
+              <div className="audit-empty">
+                <div className="empty-ledger"><Terminal size={19} /></div>
+                <h3>The ledger is quiet</h3>
+                <p>Send a request or run a recovery simulation. The agent’s action, guardrail decision, and response will appear here.</p>
+                <div className="audit-steps">
+                  <span><i>01</i> Request received</span>
+                  <span><i>02</i> Guardrail evaluated</span>
+                  <span><i>03</i> Action recorded</span>
                 </div>
               </div>
-            )}
-
-            {traces.map((t, idx) => (
-              <div 
-                key={t.id || idx} 
-                style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid #e2e8f0', 
-                  borderRadius: 8, 
-                  padding: 12,
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span style={badge(t.status)}>
-                    {t.status}
-                  </span>
-
-                  <span style={{ fontWeight: 600, fontSize: 13, color: '#0f172a', fontFamily: 'var(--font-mono)' }}>
-                    {t.tool_called || 'guardrail.evaluate'}
-                  </span>
-
-                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#64748b' }}>
-                    {t.latency_ms != null && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Clock size={11} />
-                        {t.latency_ms} ms
-                      </span>
-                    )}
-                    <span>{new Date(t.timestamp).toLocaleTimeString()}</span>
-                  </div>
+            ) : traces.map((trace, index) => (
+              <div className="trace-card" key={trace.id || index}>
+                <div className="trace-topline">
+                  <span className="trace-index">{String(index + 1).padStart(2, '0')}</span>
+                  <span style={badge(trace.status)}>{trace.status}</span>
+                  <code>{trace.tool_called || 'guardrail.evaluate'}</code>
+                  <span className="trace-time">{trace.latency_ms != null && <><Clock3 size={11} />{trace.latency_ms}ms · </>}{new Date(trace.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-
-                {t.agent_reasoning && (
-                  <div style={{ 
-                    fontSize: 12, 
-                    color: '#334155', 
-                    marginBottom: 8, 
-                    padding: '6px 10px', 
-                    background: '#f8fafc', 
-                    borderRadius: 4,
-                    borderLeft: '3px solid #2563eb'
-                  }}>
-                    <strong style={{ color: '#0f172a' }}>Reasoning:</strong> {t.agent_reasoning}
-                  </div>
-                )}
-
-                <details style={{ marginTop: 2 }}>
-                  <summary style={{ 
-                    fontSize: 11, 
-                    color: '#2563eb', 
-                    cursor: 'pointer', 
-                    fontWeight: 600,
-                  }}>
-                    View Structured Payload & Response
-                  </summary>
-                  <pre 
-                    style={{ 
-                      marginTop: 6,
-                      padding: 8, 
-                      borderRadius: 6, 
-                      background: '#f8fafc', 
-                      border: '1px solid #e2e8f0',
-                      color: '#334155', 
-                      fontSize: 11, 
-                      fontFamily: 'var(--font-mono)',
-                      overflowX: 'auto', 
-                      maxHeight: 160,
-                    }}
-                  >
-                    {JSON.stringify(t.api_response ?? t.payload_sent ?? {}, null, 2)}
-                  </pre>
+                {trace.agent_reasoning && <p className="trace-reasoning">{trace.agent_reasoning}</p>}
+                <details><summary>View payload <ChevronDown size={13} /></summary>
+                  <pre>{JSON.stringify(trace.api_response ?? trace.payload_sent ?? {}, null, 2)}</pre>
                 </details>
               </div>
             ))}
             <div ref={traceEndRef} />
           </div>
-        </section>
+          <div className="audit-footer"><Activity size={13} /> Auto-polling every 2 seconds <span>·</span> append-only</div>
+        </aside>
       </div>
     </div>
   );
-}
-
-function chatBubbleContainerStyle(role: Role): React.CSSProperties {
-  if (role === 'user') {
-    return {
-      alignSelf: 'flex-end',
-      maxWidth: '80%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'flex-end',
-    };
-  }
-  if (role === 'agent') {
-    return {
-      alignSelf: 'flex-start',
-      maxWidth: '82%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'flex-start',
-    };
-  }
-  return {
-    alignSelf: 'center',
-    maxWidth: '90%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  };
-}
-
-function chatBubbleHeaderStyle(role: Role): React.CSSProperties {
-  return {
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: '0.02em',
-    marginBottom: 3,
-    color: role === 'user' ? '#2563eb' : role === 'agent' ? '#059669' : '#b45309',
-  };
-}
-
-function chatBubbleBodyStyle(role: Role): React.CSSProperties {
-  if (role === 'user') {
-    return {
-      background: '#2563eb',
-      color: '#ffffff',
-      padding: '10px 14px',
-      borderRadius: '12px 12px 2px 12px',
-      fontSize: 13,
-      lineHeight: 1.45,
-      boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-      wordBreak: 'break-word',
-    };
-  }
-  if (role === 'agent') {
-    return {
-      background: '#ffffff',
-      color: '#0f172a',
-      border: '1px solid #e2e8f0',
-      padding: '10px 14px',
-      borderRadius: '12px 12px 12px 2px',
-      fontSize: 13,
-      lineHeight: 1.45,
-      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-      wordBreak: 'break-word',
-    };
-  }
-  return {
-    background: '#fffbeb',
-    color: '#92400e',
-    border: '1px solid #fde68a',
-    padding: '7px 12px',
-    borderRadius: 6,
-    fontSize: 12,
-    lineHeight: 1.4,
-    textAlign: 'center',
-  };
 }

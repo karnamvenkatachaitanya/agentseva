@@ -25,14 +25,14 @@ router = APIRouter()
 
 @router.post("/agent/run", response_model=AgentRunResponse)
 def run_agent(request: AgentRunRequest) -> AgentRunResponse:
-    """Run the Claude commerce agent for a single instruction.
+    """Run the Hugging Face commerce agent for a single instruction.
 
     Returns the deterministic stop reason plus every tool call it made.
-    Responds ``503`` if the Anthropic client is not configured.
+    Responds ``503`` if Hugging Face inference is not configured.
     """
     try:
         return commerce_agent.run(request)
-    except RuntimeError as exc:  # e.g. missing ANTHROPIC_API_KEY
+    except RuntimeError as exc:  # e.g. missing HUGGINGFACE_API_KEY
         logger.warning("Agent unavailable: %s", exc)
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

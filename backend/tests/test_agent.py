@@ -153,7 +153,7 @@ def test_agent_respects_max_turns(agent_deps, test_settings):
 def test_agent_missing_api_key_raises():
     from app.core.config import Settings
 
-    cfg = Settings(ANTHROPIC_API_KEY="", _env_file=None)
+    cfg = Settings(HUGGINGFACE_API_KEY="", _env_file=None)
     agent = CommerceAgent(config=cfg)  # no injected client → must try to build one
     with pytest.raises(RuntimeError):
         agent.run(AgentRunRequest(instruction="do something", session_id="run-4"))

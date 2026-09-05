@@ -2,20 +2,10 @@
 import type { CSSProperties } from 'react';
 
 export const C = {
-  bg: '#f8fafc',
-  panel: '#ffffff',
-  panel2: '#f1f5f9',
-  border: '#e2e8f0',
-  borderDark: '#cbd5e1',
-  text: '#0f172a',
-  sub: '#475569',
-  muted: '#64748b',
-  blue: '#2563eb',
-  blueHover: '#1d4ed8',
-  blueSoft: '#eff6ff',
-  emerald: '#059669',
-  amber: '#d97706',
-  red: '#dc2626',
+  bg: '#f4f7f6', panel: '#fffdf8', panel2: '#e8efec', border: '#d6e1dc',
+  borderDark: '#b8cbc4', text: '#17352f', sub: '#55716a', muted: '#849892',
+  blue: '#0c7468', blueHover: '#07584f', blueSoft: '#e3f2ee',
+  emerald: '#177245', amber: '#9b6312', red: '#a94435',
 };
 
 export const STATUS_THEME: Record<string, { bg: string; text: string; border: string }> = {
@@ -39,21 +29,10 @@ export function statusColor(s: string): string {
   return STATUS_THEME[s]?.text || '#475569';
 }
 
-export const CATEGORY_EMOJI: Record<string, string> = {
-  Dairy: '🥛',
-  'Dairy & Eggs': '🥛',
-  Staples: '🌾',
-  Oils: '🛢️',
-  Snacks: '🍪',
-  Beverages: '☕',
-  Household: '🧼',
-  Digital: '💻',
-  Pantry: '🍯',
-  Bakery: '🍞',
-};
+export const CATEGORY_EMOJI: Record<string, string> = {};
 
 export function catEmoji(category: string): string {
-  return CATEGORY_EMOJI[category] || '📦';
+  return CATEGORY_EMOJI[category] || category.slice(0, 2).toUpperCase();
 }
 
 export const card: CSSProperties = {

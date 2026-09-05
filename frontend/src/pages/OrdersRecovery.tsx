@@ -89,7 +89,7 @@ export function OrdersRecovery() {
           marginBottom: 16,
           fontSize: 13 
         }}>
-          ⛔ {error}
+          {error}
         </div>
       )}
 

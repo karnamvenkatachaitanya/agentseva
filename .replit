@@ -1,0 +1,49 @@
+modules = ["nodejs-20", "python-3.12", "web", "postgresql-16"]
+
+[nix]
+channel = "stable-25_05"
+packages = ["libxcrypt", "postgresql"]
+
+[agent]
+expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/start-replit.sh"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8008
+externalPort = 8008
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["bash", "scripts/start-production.sh"]
+build = ["bash", "-c", "npm --prefix frontend ci && npm --prefix frontend run build"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000

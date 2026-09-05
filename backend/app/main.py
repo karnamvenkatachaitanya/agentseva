@@ -17,12 +17,14 @@ from __future__ import annotations
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -43,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Create database tables (audit + engine) on boot."""
+    """Verify database connectivity and ensure catalog seed data is present."""
     init_db()
     yield
 
@@ -51,7 +53,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="AgentSeva — Razorpay Agentic Commerce & Recovery Engine",
     description=(
-        "Session-aware payments agent (Claude tool-use) with hard financial guardrails, "
+        "Session-aware open-source payments agent with hard financial guardrails, "
         "an append-only audit trail, and an automated revenue-recovery engine."
     ),
     version="1.0.0",
@@ -169,13 +171,13 @@ def agent_chat(request: Request, body: ChatRequest) -> Dict[str, Any]:
     """Session-aware agent interaction.
 
     Runs the bounded :class:`CommerceAgentCore` with the session's persistent
-    guardrails. Returns ``503`` if the Anthropic client is not configured.
+    guardrails. Returns ``503`` if Hugging Face inference is not configured.
     """
     session_id = body.session_id or f"sess_{uuid.uuid4().hex[:16]}"
     agent = CommerceAgentCore(guardrails=_guardrails_for(session_id))
     try:
         result = agent.run(body.message, context=body.context)
-    except RuntimeError as exc:  # missing ANTHROPIC_API_KEY
+    except RuntimeError as exc:  # missing HUGGINGFACE_API_KEY
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"session_id": session_id, **result.model_dump()}
 
@@ -194,7 +196,8 @@ def health() -> Dict[str, Any]:
         "database": "ok" if db_ok else "unreachable",
         "razorpay_mode": settings.RAZORPAY_MODE,
         "razorpay_credentials": bool(settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET),
-        "anthropic_configured": bool(settings.ANTHROPIC_API_KEY),
+        "huggingface_configured": bool(settings.HUGGINGFACE_API_KEY),
+        "agent_model": settings.HF_LLM_MODEL,
         "rate_limiting": RATE_LIMIT_AVAILABLE,
     }
     return {
@@ -213,19 +216,15 @@ def metrics() -> Dict[str, Any]:
     return data
 
 
-@app.get("/", tags=["Gateway"])
-def root() -> Dict[str, Any]:
-    """Service banner."""
-    return {
-        "app": "AgentSeva Razorpay Agentic Commerce & Recovery Engine",
-        "status": "online",
-        "docs": "/docs",
-    }
-
-
 # Mount the secure webhook receiver and the domain routers (AI, engine, audit, recovery).
 app.include_router(webhooks_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(api_router, prefix="/api/v1")
+
+# Production builds place the Vite app here. Mounting it last keeps every API
+# route authoritative while allowing client-side routes to fall back to index.
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if frontend_dist.is_dir():
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
 
 if __name__ == "__main__":

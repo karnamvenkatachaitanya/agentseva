@@ -1,13 +1,13 @@
-"""Deterministic Claude tool-use agent loop.
+"""Deterministic open-source tool-use agent loop.
 
-Drives Claude through a bounded tool-use conversation. Stopping is fully
+Drives a Hugging Face-hosted model through a bounded tool-use conversation. Stopping is fully
 deterministic (Core Rule #3): the loop halts on the FIRST of —
 
 * the model calling the terminal ``finalize`` tool,
 * the model replying with no tool call (``end_turn``), or
 * the hard ``AGENT_MAX_TURNS`` ceiling.
 
-The Anthropic client is injectable so the loop is unit-testable without any
+The provider-compatible client is injectable so the loop is unit-testable without any
 network access or API key.
 """
 
@@ -49,7 +49,7 @@ SYSTEM_PROMPT = (
 
 
 class LLMClient(Protocol):
-    """Minimal structural type for an Anthropic-compatible client."""
+    """Minimal structural type for a tool-calling client."""
 
     class messages:  # noqa: N801 - mirrors SDK attribute shape
         @staticmethod
@@ -57,17 +57,19 @@ class LLMClient(Protocol):
 
 
 def _get_default_client(config: Settings) -> Any:
-    """Instantiate the real Anthropic client, or raise a clear error if unusable."""
-    if not config.ANTHROPIC_API_KEY:
+    """Instantiate the Hugging Face client, or raise a clear error if unusable."""
+    if not config.HUGGINGFACE_API_KEY:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY is not configured; cannot run the Claude agent. "
+            "HUGGINGFACE_API_KEY is not configured; cannot run the commerce agent. "
             "Set it in the environment or inject a client for testing."
         )
-    try:
-        from anthropic import Anthropic
-    except ImportError as exc:  # pragma: no cover - dependency guaranteed in this env
-        raise RuntimeError("The 'anthropic' package is not installed.") from exc
-    return Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    from app.agent.huggingface_client import HuggingFaceToolClient
+
+    return HuggingFaceToolClient(
+        api_key=config.HUGGINGFACE_API_KEY,
+        base_url=config.HF_ROUTER_BASE_URL,
+        timeout=config.HF_TIMEOUT_SECONDS,
+    )
 
 
 def _block_attr(block: Any, name: str, default: Any = None) -> Any:
@@ -95,7 +97,7 @@ def _normalize_assistant_content(content: List[Any]) -> List[Dict[str, Any]]:
 
 
 class CommerceAgent:
-    """Runs a bounded, auditable Claude tool-use session."""
+    """Runs a bounded, auditable open-source tool-use session."""
 
     def __init__(
         self,
@@ -141,8 +143,9 @@ class CommerceAgent:
         for turn in range(1, self._cfg.AGENT_MAX_TURNS + 1):
             turns = turn
             response = client.messages.create(
-                model=self._cfg.CLAUDE_MODEL,
-                max_tokens=self._cfg.CLAUDE_MAX_TOKENS,
+                model=self._cfg.HF_LLM_MODEL,
+                max_tokens=self._cfg.HF_MAX_TOKENS,
+                temperature=0,
                 system=SYSTEM_PROMPT,
                 tools=self._registry.anthropic_tools(),
                 messages=messages,

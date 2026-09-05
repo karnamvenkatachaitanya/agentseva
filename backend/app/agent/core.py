@@ -1,6 +1,6 @@
 """Bounded agent core: a deterministic, guardrailed commerce state machine.
 
-The agent drives Claude 3.5 Sonnet through a **bounded** tool-use conversation
+The agent drives an open-source model through a **bounded** tool-use conversation
 (at most :data:`MAX_EXECUTION_STEPS` = 6 model turns) so a single conversation
 turn can never run away. Every money-moving tool call is gated by
 :class:`~app.agent.guardrails.PaymentGuardrailValidator` *before* execution;
@@ -164,14 +164,14 @@ def _amount_to_paise(raw: Any) -> Optional[int]:
 
 
 class CommerceAgentCore:
-    """Bounded, guardrailed Claude tool-use agent.
+    """Bounded, guardrailed open-source tool-use agent.
 
     Parameters
     ----------
     client:
-        An Anthropic-compatible client. If ``None`` a real
-        ``anthropic.Anthropic()`` is created lazily on first run (requires
-        ``ANTHROPIC_API_KEY``). Tests inject a scripted fake.
+        A tool-calling client with a ``messages.create`` interface. If ``None``,
+        a Hugging Face Router adapter is created lazily (requires
+        ``HUGGINGFACE_API_KEY``). Tests inject a scripted fake.
     guardrails:
         A :class:`PaymentGuardrailValidator`; a fresh one is created by default.
     tools:
@@ -202,19 +202,18 @@ class CommerceAgentCore:
     # ------------------------------------------------------------------ #
     def _client_or_default(self) -> Any:
         if self._client is None:
-            if not self._cfg.ANTHROPIC_API_KEY:
+            if not self._cfg.HUGGINGFACE_API_KEY:
                 raise RuntimeError(
-                    "ANTHROPIC_API_KEY is not configured; cannot run the agent. "
+                    "HUGGINGFACE_API_KEY is not configured; cannot run the agent. "
                     "Set it in the environment or inject a client for testing."
                 )
-            from anthropic import Anthropic
+            from app.agent.huggingface_client import HuggingFaceToolClient
 
-            client_kwargs: Dict[str, Any] = {"api_key": self._cfg.ANTHROPIC_API_KEY}
-            # Identity-linked (org) keys must name the workspace they act in.
-            workspace_id = getattr(self._cfg, "ANTHROPIC_WORKSPACE_ID", "")
-            if workspace_id:
-                client_kwargs["default_headers"] = {"anthropic-workspace-id": workspace_id}
-            self._client = Anthropic(**client_kwargs)
+            self._client = HuggingFaceToolClient(
+                api_key=self._cfg.HUGGINGFACE_API_KEY,
+                base_url=self._cfg.HF_ROUTER_BASE_URL,
+                timeout=self._cfg.HF_TIMEOUT_SECONDS,
+            )
         return self._client
 
     def _call_tool(self, name: str, arguments: Dict[str, Any]) -> dict:
@@ -246,8 +245,8 @@ class CommerceAgentCore:
             state = AgentState.THINKING
 
             response = client.messages.create(
-                model=self._cfg.CLAUDE_MODEL,
-                max_tokens=self._cfg.CLAUDE_MAX_TOKENS,
+                model=self._cfg.HF_LLM_MODEL,
+                max_tokens=self._cfg.HF_MAX_TOKENS,
                 temperature=0,  # deterministic tool selection / parsing
                 system=SYSTEM_PROMPT,
                 tools=self.tools.anthropic_tools(),
@@ -369,7 +368,7 @@ class CommerceAgentCore:
 
     @staticmethod
     def _tool_result(tool_use_id: Any, payload: Dict[str, Any], *, is_error: bool) -> Dict[str, Any]:
-        """Build a Claude ``tool_result`` content block with deterministic JSON."""
+        """Build a provider-neutral tool-result block with deterministic JSON."""
         return {
             "type": "tool_result",
             "tool_use_id": tool_use_id,

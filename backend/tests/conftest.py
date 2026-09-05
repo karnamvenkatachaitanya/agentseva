@@ -9,19 +9,24 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 
 # ---------------------------------------------------------------------------
 # Force a hermetic, offline test session BEFORE any app import. Real
 # environment variables take precedence over the .env file in pydantic-settings,
-# so this neutralises a live `.env` (real Razorpay/Anthropic keys) and keeps the
+# so this neutralises live provider keys and keeps the
 # whole suite deterministic and network-free.
 # ---------------------------------------------------------------------------
 os.environ["RAZORPAY_MODE"] = "mock"
 os.environ["RAZORPAY_KEY_ID"] = ""
 os.environ["RAZORPAY_KEY_SECRET"] = ""
 os.environ["RAZORPAY_WEBHOOK_SECRET"] = ""
-os.environ["ANTHROPIC_API_KEY"] = ""
+os.environ["HUGGINGFACE_API_KEY"] = ""
 os.environ["SQLALCHEMY_ECHO"] = "False"
+TEST_DATABASE_PATH = os.path.join(tempfile.gettempdir(), f"agentseva-pytest-{os.getpid()}.db")
+if os.path.exists(TEST_DATABASE_PATH):
+    os.remove(TEST_DATABASE_PATH)
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DATABASE_PATH}"
 
 import pytest
 from sqlalchemy import create_engine
@@ -34,10 +39,20 @@ if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
 from app.core.config import Settings  # noqa: E402
-from app.db.base import Base  # noqa: E402
+from app.db.base import Base, engine as app_engine  # noqa: E402
 from app.engine.audit import AuditLogger  # noqa: E402
 from app.engine.guardrails import PaymentGuardrailValidator  # noqa: E402
 from app.engine.razorpay_client import RazorpayClient  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def gateway_database():
+    """Provision and remove the isolated database used by app-level tests."""
+    Base.metadata.create_all(bind=app_engine)
+    yield
+    app_engine.dispose()
+    if os.path.exists(TEST_DATABASE_PATH):
+        os.remove(TEST_DATABASE_PATH)
 
 
 @pytest.fixture()

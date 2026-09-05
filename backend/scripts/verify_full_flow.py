@@ -63,7 +63,7 @@ def check(name: str, condition: bool, detail: str = "") -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Offline scripted Claude client (used when ANTHROPIC_API_KEY is absent)
+# Offline scripted client (used when HUGGINGFACE_API_KEY is absent)
 # --------------------------------------------------------------------------- #
 def _fake_client() -> Any:
     def txt(t: str) -> SimpleNamespace:
@@ -121,8 +121,8 @@ def main() -> int:
         from app.agent.core import ActionStatus, CommerceAgentCore
         from app.agent.guardrails import PaymentGuardrailValidator
 
-        live = bool(settings.ANTHROPIC_API_KEY) and not args.offline
-        print(f"  mode: {'LIVE Claude' if live else 'OFFLINE scripted'}  · model: {settings.CLAUDE_MODEL}")
+        live = bool(settings.HUGGINGFACE_API_KEY) and not args.offline
+        print(f"  mode: {'LIVE Hugging Face' if live else 'OFFLINE scripted'}  · model: {settings.HF_LLM_MODEL}")
         agent = CommerceAgentCore(
             client=None if live else _fake_client(),
             guardrails=PaymentGuardrailValidator(),
@@ -132,7 +132,7 @@ def main() -> int:
             resp = agent.run(prompt, context={"session_id": session_id})
         except Exception as live_err:
             if live:
-                print(f"  [WARN] Live Claude call failed ({live_err}); falling back to offline scripted client.")
+                print(f"  [WARN] Live model call failed ({live_err}); falling back to offline scripted client.")
                 agent = CommerceAgentCore(client=_fake_client(), guardrails=PaymentGuardrailValidator())
                 live = False
                 resp = agent.run(prompt, context={"session_id": session_id})

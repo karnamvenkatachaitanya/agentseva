@@ -154,7 +154,7 @@ export const SupervisorDashboard: React.FC = () => {
                     borderRadius: 4,
                     fontWeight: 600,
                   }}>
-                    {order.type === 'assisted' ? '🙋 Assisted' : '📲 Self Service'}
+                    {order.type === 'assisted' ? 'Assisted' : 'Self Service'}
                   </span>
                 </div>
                 <span style={statusBadge(order.status)}>
@@ -385,7 +385,7 @@ export const SupervisorDashboard: React.FC = () => {
 
               {showStockCheckAlert && (
                 <div style={{ fontSize: 12, color: '#059669', fontWeight: 600, textAlign: 'center' }}>
-                  ✓ Stock updated successfully
+                  Stock updated successfully
                 </div>
               )}
             </div>

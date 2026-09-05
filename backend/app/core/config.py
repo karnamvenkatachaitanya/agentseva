@@ -1,5 +1,6 @@
 import os
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")
@@ -29,20 +30,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "changeme"
 
     # ------------------------------------------------------------------ #
-    # Legacy Kiosk AI (Hugging Face) — retained for the existing kiosk app
+    # Hugging Face — powers the kiosk and bounded commerce agent
     # ------------------------------------------------------------------ #
     HUGGINGFACE_API_KEY: str = ""
-    HF_LLM_MODEL: str = "Qwen/Qwen2.5-7B-Instruct"
+    HF_LLM_MODEL: str = "Qwen/Qwen3-32B"
+    HF_ROUTER_BASE_URL: str = "https://router.huggingface.co/v1"
+    HF_MAX_TOKENS: int = 1024
+    HF_TIMEOUT_SECONDS: float = 60.0
 
-    # ------------------------------------------------------------------ #
-    # Claude (Anthropic) — powers the Agentic Commerce & Recovery Engine
-    # ------------------------------------------------------------------ #
-    ANTHROPIC_API_KEY: str = ""
-    # Required only for identity-linked (org) API keys, which must name the
-    # workspace a request acts in. Leave blank for workspace-scoped keys.
-    ANTHROPIC_WORKSPACE_ID: str = ""
-    CLAUDE_MODEL: str = "claude-3-5-sonnet-latest"
-    CLAUDE_MAX_TOKENS: int = 1024
     # Hard upper bound on agent tool-use turns — a deterministic stopping guard.
     AGENT_MAX_TURNS: int = 8
 
@@ -65,6 +60,16 @@ class Settings(BaseSettings):
     MAX_TXN_AMOUNT_PAISE: int = 50_000_00     # ₹50,000
     DAILY_CAP_PAISE: int = 200_000_00         # ₹2,00,000
     ALLOWED_CURRENCIES: str = "INR"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def use_psycopg_driver(cls, value: str) -> str:
+        """Route generic PostgreSQL URLs through the installed psycopg v3 driver."""
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+psycopg://", 1)
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        return value
 
     @property
     def allowed_currencies(self) -> set[str]:

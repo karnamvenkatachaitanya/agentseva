@@ -309,7 +309,7 @@ export const OwnerDashboard: React.FC = () => {
         
         {/* Sales Chart Panel */}
         <div  style={{ padding: '20px', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>📊 Sales Hourly Performance Trend</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Sales Hourly Performance Trend</h3>
           
           {/* Custom SVG Chart */}
           <div style={{ width: '100%', height: '220px', display: 'flex', alignItems: 'flex-end', padding: '10px 0' }}>

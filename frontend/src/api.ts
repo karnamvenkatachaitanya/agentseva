@@ -60,13 +60,30 @@ export interface AuditTrace {
   latency_ms: number | null;
 }
 
+export async function readJsonResponse<T = unknown>(res: Response): Promise<T | null> {
+  const text = await res.text();
+  if (!text) return null;
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    throw new Error(
+      `The service returned an HTML page instead of JSON (HTTP ${res.status}). It may be offline or not published yet.`,
+    );
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`The service returned invalid JSON (HTTP ${res.status}).`);
+  }
+}
+
 async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  const data = await readJsonResponse<Record<string, unknown>>(res);
   if (!res.ok) {
     const detail = data && (data.detail || data.error) ? data.detail || data.error : res.statusText;
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));

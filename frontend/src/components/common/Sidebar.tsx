@@ -364,7 +364,7 @@ export const Sidebar: React.FC = () => {
                   fontSize: '0.85rem'
                 }}
               >
-                <span>👁️ High Contrast</span>
+                <span>High Contrast</span>
                 <span>{accessibility.highContrast ? 'ACTIVE' : 'INACTIVE'}</span>
               </button>
 
@@ -383,7 +383,7 @@ export const Sidebar: React.FC = () => {
                   fontSize: '0.85rem'
                 }}
               >
-                <span>📝 Large Fonts</span>
+                <span>Large Fonts</span>
                 <span>{accessibility.largeFont ? 'ACTIVE' : 'INACTIVE'}</span>
               </button>
 
@@ -402,7 +402,7 @@ export const Sidebar: React.FC = () => {
                   fontSize: '0.85rem'
                 }}
               >
-                <span>🗣️ Voice Synthesizer Feedback</span>
+                <span>Voice Synthesizer Feedback</span>
                 <span>{accessibility.voiceFeedback ? 'ACTIVE' : 'INACTIVE'}</span>
               </button>
             </div>

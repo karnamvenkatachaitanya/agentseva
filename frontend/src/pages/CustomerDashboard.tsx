@@ -712,14 +712,14 @@ export const CustomerDashboard: React.FC = () => {
                   className="btn-primary"
                   style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', padding: '10px', background: isVoiceListening ? '#dc2626' : 'var(--accent-gradient)' }}
                 >
-                  <Mic size={18} /> {isVoiceListening ? 'Listening via Microphone...' : '🎙️ Speak Live via Microphone'}
+                  <Mic size={18} /> {isVoiceListening ? 'Listening via Microphone...' : 'Speak Live via Microphone'}
                 </button>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <button onClick={() => handleVoiceCommand("Add milk and basmati rice")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>🎙️ "Add Milk & Rice"</button>
-                  <button onClick={() => handleVoiceCommand("Where is mustard oil?")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>🎙️ "Where is Mustard Oil?"</button>
-                  <button onClick={() => handleVoiceCommand("Show Snacks & Biscuits")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>🎙️ "Show Snacks"</button>
-                  <button onClick={() => handleVoiceCommand("Checkout my cart")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>🎙️ "Checkout"</button>
+                  <button onClick={() => handleVoiceCommand("Add milk and basmati rice")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>"Add Milk & Rice"</button>
+                  <button onClick={() => handleVoiceCommand("Where is mustard oil?")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>"Where is Mustard Oil?"</button>
+                  <button onClick={() => handleVoiceCommand("Show Snacks & Biscuits")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>"Show Snacks"</button>
+                  <button onClick={() => handleVoiceCommand("Checkout my cart")} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>"Checkout"</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -818,9 +818,9 @@ export const CustomerDashboard: React.FC = () => {
                       <span style={{ fontWeight: 800, color: '#0c2340' }}>{lastGesture}</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                      <button onClick={() => triggerSimulatedGesture('Swipe Right')} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>➡️ Swipe Right (Next Cat)</button>
-                      <button onClick={() => triggerSimulatedGesture('Swipe Left')} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>⬅️ Swipe Left (Prev Cat)</button>
-                      <button onClick={() => triggerSimulatedGesture('Thumbs Up')} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>👍 Thumbs Up (Add Item)</button>
+                      <button onClick={() => triggerSimulatedGesture('Swipe Right')} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>Swipe Right (Next Cat)</button>
+                      <button onClick={() => triggerSimulatedGesture('Swipe Left')} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>Swipe Left (Prev Cat)</button>
+                      <button onClick={() => triggerSimulatedGesture('Thumbs Up')} style={{ fontSize: '0.7rem', padding: '6px', background: 'var(--bg-primary)', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>Thumbs Up (Add Item)</button>
                     </div>
                   </>
                 )}
@@ -887,7 +887,7 @@ export const CustomerDashboard: React.FC = () => {
                             </div>
                           </div>
                           <button onClick={handleCameraSnap} className="btn-primary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', padding: '8px' }}>
-                            📸 Capture Snap Now & Auto-Add to Cart
+                            Capture Snap Now & Auto-Add to Cart
                           </button>
                         </div>
                       ) : (
@@ -898,7 +898,7 @@ export const CustomerDashboard: React.FC = () => {
                             style={{ padding: '10px 6px', fontSize: '0.75rem', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}
                           >
                             <Camera size={20} />
-                            <span>📸 Take Snap of List</span>
+                            <span>Take Snap of List</span>
                           </button>
 
                           <label 
@@ -907,7 +907,7 @@ export const CustomerDashboard: React.FC = () => {
                             style={{ padding: '10px 6px', fontSize: '0.75rem', flexDirection: 'column', gap: '4px', justifyContent: 'center', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                           >
                             <Upload size={20} style={{ color: '#0c2340' }} />
-                            <span>📁 Upload List Image</span>
+                            <span>Upload List Image</span>
                           </label>
                           <input 
                             id="ocr-file-upload-input" 
@@ -927,7 +927,7 @@ export const CustomerDashboard: React.FC = () => {
                         className="btn-secondary"
                         style={{ width: '100%', fontSize: '0.7rem', padding: '6px', justifyContent: 'center', border: '1px solid #0c2340', color: '#0c2340' }}
                       >
-                        🖼️ Load Sample Handwritten Paper List Image
+                        Load Sample Handwritten Paper List Image
                       </button>
 
                       {/* Image Preview Thumbnail if uploaded */}
@@ -972,7 +972,7 @@ export const CustomerDashboard: React.FC = () => {
                         className="btn-primary" 
                         style={{ padding: '8px 12px', fontSize: '0.75rem', width: '100%', justifyContent: 'center' }}
                       >
-                        📄 Parse & Add List Items to Cart
+                        Parse & Add List Items to Cart
                       </button>
 
                       {/* Result Badge */}
@@ -987,7 +987,7 @@ export const CustomerDashboard: React.FC = () => {
                           width: '100%',
                           textAlign: 'left'
                         }}>
-                          <strong>✓ Auto-Added ({ocrAutoAddedItems.length} items):</strong> {ocrAutoAddedItems.join(', ')}
+                          <strong>Auto-Added ({ocrAutoAddedItems.length} items):</strong> {ocrAutoAddedItems.join(', ')}
                         </div>
                       )}
                     </>
@@ -1149,8 +1149,8 @@ export const CustomerDashboard: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Choose payment method:</span>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <button onClick={() => setPaymentMethod('upi')} className={paymentMethod === 'upi' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>📲 UPI QR Code</button>
-                    <button onClick={() => setPaymentMethod('cash')} className={paymentMethod === 'cash' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>💵 Cash Counter</button>
+                    <button onClick={() => setPaymentMethod('upi')} className={paymentMethod === 'upi' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>UPI QR Code</button>
+                    <button onClick={() => setPaymentMethod('cash')} className={paymentMethod === 'cash' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>Cash Counter</button>
                   </div>
                 </div>
 
@@ -1177,7 +1177,7 @@ export const CustomerDashboard: React.FC = () => {
                     </>
                   ) : (
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '10px 0' }}>
-                      💰 Please take your token to the billing counter and pay cash.
+                      Please take your token to the billing counter and pay cash.
                     </span>
                   )}
                 </div>

@@ -212,7 +212,7 @@ export function StoreCatalog() {
           marginBottom: 16,
           fontSize: 13 
         }}>
-          ⛔ {error}
+          {error}
         </div>
       )}
 

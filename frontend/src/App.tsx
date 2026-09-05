@@ -1,16 +1,8 @@
-import { useState, useEffect } from 'react';
-import { 
-  Bot, 
-  ShoppingCart, 
-  ClipboardList, 
-  TrendingUp, 
-  RotateCcw, 
-  ShieldCheck, 
-  Package, 
-  CreditCard,
-  Building2
+import { useEffect, useState } from 'react';
+import {
+  Activity, Bot, Building2, ClipboardList, CreditCard,
+  Package, RotateCcw, ShieldCheck, ShoppingCart, TrendingUp, Wifi
 } from 'lucide-react';
-
 import { CustomerDashboard } from './pages/CustomerDashboard';
 import { AgentConsole } from './pages/AgentConsole';
 import { SupervisorDashboard } from './pages/SupervisorDashboard';
@@ -20,241 +12,104 @@ import { AgenticCheckout } from './pages/AgenticCheckout';
 import { OrdersRecovery } from './pages/OrdersRecovery';
 import { AuditGuardrails } from './pages/AuditGuardrails';
 
-export type AppTab = 
-  | 'kiosk' 
-  | 'console' 
-  | 'supervisor' 
-  | 'owner' 
-  | 'checkout' 
-  | 'recovery' 
-  | 'audit' 
-  | 'catalog';
-
-interface TabItem {
-  key: AppTab;
-  label: string;
-  badge?: string;
-  icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
-}
+export type AppTab = 'kiosk' | 'console' | 'supervisor' | 'owner' | 'checkout' | 'recovery' | 'audit' | 'catalog';
+type Icon = React.ComponentType<{ size?: number; className?: string }>;
+interface TabItem { key: AppTab; label: string; note: string; icon: Icon; }
 
 const TABS: TabItem[] = [
-  { key: 'console', label: 'Agent Console', badge: 'Claude 3.5', icon: Bot },
-  { key: 'kiosk', label: 'Store Kiosk', icon: ShoppingCart },
-  { key: 'checkout', label: 'Direct Checkout', icon: CreditCard },
-  { key: 'recovery', label: 'Revenue Recovery', icon: RotateCcw },
-  { key: 'audit', label: 'Audit & Guardrails', icon: ShieldCheck },
-  { key: 'catalog', label: 'Catalog', icon: Package },
-  { key: 'supervisor', label: 'Order Dispatch', icon: ClipboardList },
-  { key: 'owner', label: 'Merchant Analytics', icon: TrendingUp },
+  { key: 'console', label: 'Agent Console', note: 'Autonomous actions', icon: Bot },
+  { key: 'kiosk', label: 'Store Kiosk', note: 'Customer counter', icon: ShoppingCart },
+  { key: 'checkout', label: 'Direct Checkout', note: 'Payment initiation', icon: CreditCard },
+  { key: 'recovery', label: 'Revenue Recovery', note: 'Save failed orders', icon: RotateCcw },
+  { key: 'audit', label: 'Audit & Guardrails', note: 'Controls & traces', icon: ShieldCheck },
+  { key: 'catalog', label: 'Catalog', note: 'Inventory registry', icon: Package },
+  { key: 'supervisor', label: 'Order Dispatch', note: 'Fulfilment queue', icon: ClipboardList },
+  { key: 'owner', label: 'Merchant Analytics', note: 'Business pulse', icon: TrendingUp },
 ];
 
 function App() {
   const [tab, setTab] = useState<AppTab>('console');
   const [backendStatus, setBackendStatus] = useState<'ok' | 'connecting' | 'error'>('connecting');
-  const [razorpayMode, setRazorpayMode] = useState<string>('live');
+  const [razorpayMode, setRazorpayMode] = useState('live');
 
-  // Check backend health
   useEffect(() => {
-    const checkHealth = async () => {
+    const check = async () => {
       try {
         const res = await fetch('/api/v1/health');
-        if (res.ok) {
-          const data = await res.json();
-          setBackendStatus('ok');
-          if (data.dependencies?.razorpay_mode) {
-            setRazorpayMode(data.dependencies.razorpay_mode);
-          }
-        } else {
-          setBackendStatus('error');
-        }
-      } catch {
-        setBackendStatus('error');
-      }
+        if (!res.ok) throw new Error('health');
+        const data = await res.json();
+        setBackendStatus('ok');
+        if (data.dependencies?.razorpay_mode) setRazorpayMode(data.dependencies.razorpay_mode);
+      } catch { setBackendStatus('error'); }
     };
-    checkHealth();
-    const timer = setInterval(checkHealth, 10000);
-    return () => clearInterval(timer);
+    check();
+    const timer = window.setInterval(check, 10000);
+    return () => window.clearInterval(timer);
   }, []);
 
+  const active = TABS.find((item) => item.key === tab) ?? TABS[0];
   return (
-    <div 
-      style={{ 
-        height: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        overflow: 'hidden', 
-        background: '#f8fafc',
-        color: '#0f172a',
-        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}
-    >
-      {/* Clean, authoritative SaaS Header */}
-      <header 
-        style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          padding: '10px 24px', 
-          background: '#ffffff', 
-          borderBottom: '1px solid #e2e8f0',
-          zIndex: 50,
-          gap: 16
-        }}
-      >
-        {/* Brand & Subtitle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <div 
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 6,
-              background: '#0c2340',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff'
-            }}
-          >
+    <div className="app-shell app-layout" style={{ minHeight: '100dvh', display: 'flex', overflow: 'hidden' }}>
+      <aside className="app-rail" style={{ width: 238, flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '22px 12px' }}>
+        <div className="app-rail-brand" style={{ padding: '0 12px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: '#e8b15a', color: '#17352f', display: 'grid', placeItems: 'center' }}>
             <Building2 size={18} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', color: '#0c2340' }}>
-                AgentSeva
-              </span>
-              <span style={{ 
-                fontSize: 11, 
-                fontWeight: 600, 
-                background: '#eff6ff', 
-                color: '#2563eb', 
-                padding: '1px 6px', 
-                borderRadius: 4,
-                border: '1px solid #bfdbfe'
-              }}>
-                Razorpay Commerce Engine
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>
-              Autonomous Payments & Recovery Engine
-            </div>
+          <div className="app-header-copy">
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 800, letterSpacing: '-.04em' }}>AgentSeva</div>
+            <div style={{ color: '#a9c3bb', fontSize: 10, letterSpacing: '.04em' }}>MERCHANT OPERATIONS</div>
           </div>
         </div>
-
-        {/* Center Segmented Tabs */}
-        <nav 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2, 
-            background: '#f1f5f9', 
-            padding: '3px', 
-            borderRadius: 8,
-            border: '1px solid #e2e8f0',
-            overflowX: 'auto',
-          }}
-        >
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
+        <div className="eyebrow" style={{ color: '#76958b', padding: '0 12px 8px' }}>Workspace</div>
+        <nav className="app-nav" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {TABS.map((item) => {
+            const Icon = item.icon;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  border: active ? '1px solid #e2e8f0' : '1px solid transparent',
-                  background: active ? '#ffffff' : 'transparent',
-                  color: active ? '#0f172a' : '#64748b',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: active ? 600 : 500,
-                  fontFamily: 'inherit',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
-                  boxShadow: active ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none',
-                }}
+                key={item.key}
+                data-active={tab === item.key}
+                onClick={() => setTab(item.key)}
+                title={item.note}
+                style={{ border: 0, background: 'transparent', cursor: 'pointer', borderRadius: 9, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 11, textAlign: 'left', transition: 'background .16s, color .16s', fontSize: 12, fontWeight: 600 }}
               >
-                <Icon size={14} style={{ color: active ? '#2563eb' : '#94a3b8' }} />
-                <span>{t.label}</span>
-                {t.badge && (
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    background: active ? '#eff6ff' : '#e2e8f0',
-                    color: active ? '#2563eb' : '#64748b',
-                    padding: '1px 5px',
-                    borderRadius: 4,
-                  }}>
-                    {t.badge}
-                  </span>
-                )}
+                <Icon size={16} />
+                <span className="app-nav-label">{item.label}</span>
               </button>
             );
           })}
         </nav>
-
-        {/* Right Telemetry */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {/* Status Badge */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            padding: '4px 9px',
-            borderRadius: 6,
-            fontSize: 12,
-            color: '#059669',
-            fontWeight: 600,
-          }}>
-            <span 
-              className={backendStatus === 'ok' ? 'pulse-indicator' : ''} 
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: backendStatus === 'ok' ? '#10b981' : '#f59e0b',
-                display: 'inline-block'
-              }} 
-            />
-            <span>{backendStatus === 'ok' ? `RPAY: ${razorpayMode.toUpperCase()}` : 'CONNECTING'}</span>
+        <div className="app-rail-footer" style={{ marginTop: 'auto', padding: '14px 12px 0', borderTop: '1px solid rgba(255,255,255,.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#a9c3bb' }}>
+            <Activity size={14} color="#e8b15a" /> <span>Guardrails active</span>
           </div>
-
-          {/* Financial Guardrail Pill */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            padding: '4px 9px',
-            borderRadius: 6,
-            fontSize: 12,
-            color: '#334155',
-            fontWeight: 600,
-          }}>
-            <ShieldCheck size={14} style={{ color: '#2563eb' }} />
-            <span>₹50K Cap</span>
-          </div>
+          <div style={{ color: '#76958b', fontSize: 10, marginTop: 5 }}>₹50,000 single-order cap</div>
         </div>
-      </header>
-
-      {/* Main View Area */}
-      <main style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative', background: '#f8fafc' }}>
-        {tab === 'console' && <AgentConsole />}
-        {tab === 'kiosk' && <CustomerDashboard />}
-        {tab === 'checkout' && <AgenticCheckout />}
-        {tab === 'recovery' && <OrdersRecovery />}
-        {tab === 'audit' && <AuditGuardrails />}
-        {tab === 'catalog' && <StoreCatalog />}
-        {tab === 'supervisor' && <SupervisorDashboard />}
-        {tab === 'owner' && <OwnerDashboard />}
-      </main>
+      </aside>
+      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100dvh' }}>
+        <header style={{ minHeight: 66, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 26px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+          <div>
+            <div className="eyebrow">AgentSeva / {active.label}</div>
+            <h1 style={{ margin: '3px 0 0', fontFamily: 'var(--font-heading)', fontSize: 19, color: 'var(--text-primary)', letterSpacing: '-.03em' }}>{active.label}</h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border-color)', borderRadius: 7, padding: '6px 9px', color: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+              <Wifi size={13} color={backendStatus === 'ok' ? '#177245' : '#9b6312'} />
+              {backendStatus === 'ok' ? `RZP ${razorpayMode.toUpperCase()}` : backendStatus === 'error' ? 'API OFFLINE' : 'CONNECTING'}
+            </div>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcebe4', color: '#17695e', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 800 }}>RK</div>
+          </div>
+        </header>
+        <main style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          {tab === 'console' && <AgentConsole />}
+          {tab === 'kiosk' && <CustomerDashboard />}
+          {tab === 'checkout' && <AgenticCheckout />}
+          {tab === 'recovery' && <OrdersRecovery />}
+          {tab === 'audit' && <AuditGuardrails />}
+          {tab === 'catalog' && <StoreCatalog />}
+          {tab === 'supervisor' && <SupervisorDashboard />}
+          {tab === 'owner' && <OwnerDashboard />}
+        </main>
+      </div>
     </div>
   );
 }

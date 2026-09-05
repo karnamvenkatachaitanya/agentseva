@@ -1,4 +1,4 @@
-"""Tests for catalog integration: search tool + item-priced orders from SQLite."""
+"""Tests for catalog integration: search tool + item-priced orders."""
 
 from __future__ import annotations
 

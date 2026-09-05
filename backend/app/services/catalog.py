@@ -2,20 +2,21 @@
 
 Shared by the REST API (Store Catalog tab) and the agent tools
 (``search_product_catalog`` + item-priced orders). All monetary maths uses the
-real ``price_inr`` from SQLite so the agent never invents amounts.
+real ``price_inr`` from the database so the agent never invents amounts.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.base import SessionLocal
 from app.models.product import Product
 
 # 8–10 sample merchant products (Kirana goods, food, and SaaS) seeded if empty.
+_CATALOG_SEED_LOCK_ID = 1_151_736_582
 SEED_CATALOG: List[Dict[str, Any]] = [
     {"name": "Amul Taaza Toned Milk (1L)", "description": "Fresh toned milk, 3% fat.",
      "price_inr": 54, "category": "Dairy", "stock_quantity": 65, "image_url": ""},
@@ -41,18 +42,25 @@ SEED_CATALOG: List[Dict[str, Any]] = [
 
 
 def seed_catalog_if_empty(session_factory: Optional[sessionmaker] = None) -> int:
-    """Insert the sample catalog if the products table is empty.
+    """Insert the sample catalog once, including during concurrent first boots.
 
     Returns the number of products inserted (0 if it was already populated).
     """
     factory = session_factory or SessionLocal
     with factory() as session:
-        existing = session.execute(select(Product.id).limit(1)).first()
-        if existing:
-            return 0
-        session.add_all([Product(**row) for row in SEED_CATALOG])
-        session.commit()
-        return len(SEED_CATALOG)
+        with session.begin():
+            if session.bind is not None and session.bind.dialect.name == "postgresql":
+                # Serialize the tiny check-and-insert transaction across Autoscale
+                # instances. The transaction-scoped lock is released on commit.
+                session.execute(
+                    text("SELECT pg_advisory_xact_lock(:lock_id)"),
+                    {"lock_id": _CATALOG_SEED_LOCK_ID},
+                )
+            existing = session.execute(select(Product.id).limit(1)).first()
+            if existing:
+                return 0
+            session.add_all([Product(**row) for row in SEED_CATALOG])
+            return len(SEED_CATALOG)
 
 
 def search_products(

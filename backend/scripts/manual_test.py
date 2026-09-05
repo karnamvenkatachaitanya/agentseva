@@ -5,7 +5,7 @@ Runs four sequential end-to-end checks against the real application code
 (mock mode by default — no keys required):
 
     1. Agent tool calling with Claude 3.5 Sonnet
-       (live if ANTHROPIC_API_KEY is set, otherwise a scripted offline demo)
+       (live if HUGGINGFACE_API_KEY is set, otherwise a scripted offline demo)
     2. Razorpay Order + Payment Link creation (test keys or mock simulator)
     3. Guardrail boundary violations (amount over cap; rapid failed retries → circuit breaker)
     4. Append-only audit-log insertion and retrieval
@@ -118,9 +118,9 @@ def test_agent_tool_calling() -> None:
     from app.agent.core import ActionStatus, CommerceAgentCore
     from app.agent.guardrails import PaymentGuardrailValidator
 
-    live = bool(settings.ANTHROPIC_API_KEY)
-    print(f"  mode: {'LIVE (Anthropic API)' if live else 'OFFLINE (scripted fake client)'}"
-          f"  · model: {settings.CLAUDE_MODEL}")
+    live = bool(settings.HUGGINGFACE_API_KEY)
+    print(f"  mode: {'LIVE (Hugging Face API)' if live else 'OFFLINE (scripted fake client)'}"
+          f"  · model: {settings.HF_LLM_MODEL}")
 
     guardrails = PaymentGuardrailValidator()
     resp = None
@@ -131,7 +131,7 @@ def test_agent_tool_calling() -> None:
                 "Create a Razorpay order for 250 rupees with receipt 'manual-live-1', then stop."
             )
         except Exception as live_err:
-            print(f"  [WARN] Live Anthropic call failed ({live_err}); falling back to offline scripted client.")
+            print(f"  [WARN] Live model call failed ({live_err}); falling back to offline scripted client.")
             live = False
 
     if not live:

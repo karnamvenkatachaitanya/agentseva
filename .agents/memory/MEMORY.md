@@ -1,0 +1,1 @@
+- [Managed PostgreSQL checks](managed-postgres-checks.md) — standalone database checks must isolate schemas and mirror the app’s psycopg URL normalization.

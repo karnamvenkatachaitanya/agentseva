@@ -66,10 +66,10 @@ export function AgenticCheckout() {
       if (data.session_id) setSessionId(data.session_id);
       push('agent', data.reply || '(no reply)');
       if (data.requires_escalation) {
-        push('system', '⚠️ Requires human confirmation / escalation.');
+        push('system', 'Requires human confirmation / escalation.');
       }
     } catch (e) {
-      push('system', `⛔ ${String(e)}`);
+      push('system', `Checkout error: ${String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -89,7 +89,7 @@ export function AgenticCheckout() {
         items: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty })),
       });
       setCheckoutLink(res.payment_link);
-      push('system', `🧾 Razorpay payment link generated for ${inr(res.total_inr)} → ${res.payment_link}`);
+      push('system', `Razorpay payment link generated for ${inr(res.total_inr)} → ${res.payment_link}`);
     } catch (e) {
       setError(String(e));
     }
@@ -429,7 +429,7 @@ export function AgenticCheckout() {
                 padding: '6px 10px', 
                 borderRadius: 4 
               }}>
-                ⛔ {error}
+                {error}
               </div>
             )}
 
