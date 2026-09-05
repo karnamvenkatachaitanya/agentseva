@@ -1,1 +1,2 @@
 - [Managed PostgreSQL checks](managed-postgres-checks.md) — standalone database checks must isolate schemas and mirror the app’s psycopg URL normalization.
+- [GitHub connector write path](github-write-path.md) — use authenticated GraphQL bundled commits when REST Git writes are blocked upstream.
